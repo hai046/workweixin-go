@@ -1,0 +1,1 @@
+../jiemo-golang/src/jiemoapp.com/qyweixin/work_weixin.go
