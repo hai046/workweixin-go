@@ -14,10 +14,11 @@ import (
 )
 
 type WorkWeixin struct {
-	corpid     string
-	corpsecret string
-	token      *AccessToken
-	agentId    int
+	corpid      string
+	corpsecret  string
+	token       *AccessToken
+	agentId     int
+	userMobiles map[string]string
 }
 
 type AccessToken struct {
@@ -211,7 +212,7 @@ func (w *WorkWeixin) AddTagUsers(userIds []string, tagId int) string {
 	return string(buffer)
 }
 
-func (w *WorkWeixin) SendText(toUser string, toparties string, totag string, text string) {
+func (w *WorkWeixin) SendText(toUser string, toparties string, totag string, text string) string {
 
 	log.Println("send msg=", text)
 	bodyStruct := map[string]interface{}{
@@ -229,7 +230,7 @@ func (w *WorkWeixin) SendText(toUser string, toparties string, totag string, tex
 
 	if err != nil {
 		fmt.Println("Marshal msg err", err)
-		return
+		return "Marshal msg err"
 	}
 	log.Println(string(body))
 
@@ -239,14 +240,25 @@ func (w *WorkWeixin) SendText(toUser string, toparties string, totag string, tex
 	//
 	if err != nil {
 		log.Println("send text err", err)
+		return fmt.Sprint(err)
 	} else {
 		log.Println(string(buffer))
+		return string(buffer)
 	}
 
 }
 
 func (w *WorkWeixin) checkToken() bool {
-	return w.token != nil && w.token.ExpireAt > time.Now().Unix()
+
+	if w.token != nil {
+		if w.token.ExpireAt > time.Now().Unix() {
+			return true
+		} else {
+			w.saveAccessToken(nil)
+		}
+	}
+
+	return false;
 }
 
 func (w *WorkWeixin) GetAccessToken() (string) {
@@ -275,8 +287,9 @@ func (w *WorkWeixin) GetAccessToken() (string) {
 		log.Fatal("获取accessToken err")
 	}
 
-	w.saveAccessToken(buffer)
 	token.ExpireAt = time.Now().Unix() + token.Expires_in - 60
+	buffer, _ = json.Marshal(token)
+	w.saveAccessToken(buffer)
 	log.Println(token)
 	w.token = token
 
@@ -313,6 +326,10 @@ func (w *WorkWeixin) getStoreFile() string {
 
 func (w *WorkWeixin) saveAccessToken(bytes []byte) {
 
+	if bytes == nil {
+		os.Remove(w.getStoreFile())
+		return
+	}
 	file, err := os.Create(w.getStoreFile()) // For read access.
 	if err != nil {
 		log.Fatal(err)
@@ -358,4 +375,14 @@ func requestUrl(url string, method string, body io.Reader) ([]byte, error) {
 		return nil, errors.New(fmt.Sprint("StatusCode=", response.StatusCode, " msg=", string(buf)))
 	}
 
+}
+
+func (w *WorkWeixin) GetUserIdByMobile(mobile string) string {
+	if w.userMobiles == nil {
+		w.userMobiles = make(map[string]string)
+		for _, v := range w.GetDepartmentUsers(1, 1) {
+			w.userMobiles[v.Mobile] = v.Userid
+		}
+	}
+	return w.userMobiles[mobile]
 }
