@@ -1,8 +1,12 @@
 # workweixin-go
 golang实现企业微信API
+- 实现了部门相关api
+- 实现了tag相关api
+- 实现了获取用户相关api
+- 实现发送聊天相关api
+- 实现了手机号对应user转换
 
-实现发送消息 注意发送消息的agentId是不一样的
-实现了部门 tag相关
+注意:因为企业微信不同的功能对应不同的应用，不同的应用agentId 和secert是不一样的，故调用api时候请按照官方说明调用对应方法即可
 ```
 	var w work.WorkWeixin //声明企业微信  通讯录里面的secret
 	w.Init("cropid", "secret", 0)
