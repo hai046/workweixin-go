@@ -340,11 +340,11 @@ func (w *WorkWeixin) saveAccessToken(bytes []byte) {
 
 }
 
-func postRequestUrl(url string, body io.Reader) ([]byte, error) {
+func PostRequestUrl(url string, body io.Reader) ([]byte, error) {
 	return requestUrl(url, "POST", body)
 }
 
-func getRequestUrl(url string) ([]byte, error) {
+func GetRequestUrl(url string) ([]byte, error) {
 	return requestUrl(url, "GET", nil)
 }
 
