@@ -1,16 +1,16 @@
 package work
 
 import (
-	"fmt"
+	"bytes"
 	"encoding/json"
-	"time"
-	"log"
 	"errors"
-	"os"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
-	"bytes"
+	"os"
+	"time"
 )
 
 type WorkWeixin struct {
@@ -23,27 +23,27 @@ type WorkWeixin struct {
 
 type AccessToken struct {
 	Access_token string `json:"access_token"`
-	Expires_in   int64  `json:"expires_in"`  //秒 默认返回是2小时
-	ExpireAt     int64     `json:"expireAt"` //在什么时候过期
-	Errcode      int `json:"errcode"`
+	Expires_in   int64  `json:"expires_in"` //秒 默认返回是2小时
+	ExpireAt     int64  `json:"expireAt"`   //在什么时候过期
+	Errcode      int    `json:"errcode"`
 	Errmsg       string `json:"errmsg"`
 }
 
 type Department struct {
-	Id       int `json:"id"`
+	Id       int    `json:"id"`
 	Name     string `json:"name"`
-	Parentid int32 `json:"parentid"`
-	Order    int32 `json:"order"`
+	Parentid int32  `json:"parentid"`
+	Order    int32  `json:"order"`
 }
 
 type departments struct {
-	Errcode    int `json:"errcode"`
-	Errmsg     string `json:"errmsg"`
+	Errcode    int          `json:"errcode"`
+	Errmsg     string       `json:"errmsg"`
 	Department []Department `json:"department"`
 }
 
 type users struct {
-	Errcode  int `json:"errcode"`
+	Errcode  int    `json:"errcode"`
 	Errmsg   string `json:"errmsg"`
 	Userlist []User `json:"userlist"`
 }
@@ -51,10 +51,10 @@ type users struct {
 type User struct {
 	Userid       string `json:"userid"`
 	Name         string `json:"name"`
-	Department   []int `json:"department"`
+	Department   []int  `json:"department"`
 	Mobile       string `json:"mobile"`
 	Email        string `json:"email"`
-	Status       int `json:"status"`
+	Status       int    `json:"status"`
 	Avatar       string `json:"avatar"`
 	Telephone    string `json:"telephone"`
 	English_name string `json:"english_name"`
@@ -66,19 +66,19 @@ func (w *WorkWeixin) Init(corpid string,
 	corpsecret string, agentId int) {
 	w.corpid = corpid
 	w.corpsecret = corpsecret
-	w.agentId = agentId;
+	w.agentId = agentId
 	w.GetAccessToken()
 
 }
 
 type Tag struct {
 	TagName string `json:"tagname"`
-	TagId   int `json:"tagid"`
+	TagId   int    `json:"tagid"`
 }
 type tags struct {
-	Errcode int `json:"errcode"`
+	Errcode int    `json:"errcode"`
 	Errmsg  string `json:"errmsg"`
-	TagList []Tag `json:"taglist"`
+	TagList []Tag  `json:"taglist"`
 }
 
 func (w *WorkWeixin) GetDepartmentParentList() ([]Department, error) {
@@ -94,7 +94,7 @@ func (w *WorkWeixin) GetSonDepartmentParentList(sonDepartment int) ([]Department
 //获取部门成员
 func (w *WorkWeixin) getDepartmentList(sonDepartment int) ([]Department, error) {
 	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/department/list?access_token=%s&id=%d", w.GetAccessToken(), sonDepartment)
-	buffer, err := getRequestUrl(url)
+	buffer, err := GetRequestUrl(url)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -115,7 +115,7 @@ func (w *WorkWeixin) GetDepartmentUsers(department_id int, fetch_child int) []Us
 
 	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/user/list?access_token=%s&department_id=%d&fetch_child=%d",
 		w.GetAccessToken(), department_id, fetch_child)
-	buffer, err := getRequestUrl(url)
+	buffer, err := GetRequestUrl(url)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -142,7 +142,7 @@ func (w *WorkWeixin) CreateTag(tag Tag) {
 		fmt.Println("Marshal msg err", err)
 		return
 	}
-	buffer, err := postRequestUrl(url, bytes.NewBuffer(body))
+	buffer, err := PostRequestUrl(url, bytes.NewBuffer(body))
 	if err != nil {
 		log.Panic(err)
 	}
@@ -156,7 +156,7 @@ func (w *WorkWeixin) GetTagList() []Tag {
 	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/tag/list?access_token=%s",
 		w.GetAccessToken())
 
-	buffer, err := getRequestUrl(url)
+	buffer, err := GetRequestUrl(url)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -173,7 +173,7 @@ func (w *WorkWeixin) GetTagUser(tagid int) []User {
 	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/tag/get?access_token=%s&tagid=%d",
 		w.GetAccessToken(), tagid)
 
-	buffer, err := getRequestUrl(url)
+	buffer, err := GetRequestUrl(url)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -203,7 +203,7 @@ func (w *WorkWeixin) AddTagUsers(userIds []string, tagId int) string {
 		fmt.Println("Marshal msg err", err)
 		return fmt.Sprint(err)
 	}
-	buffer, err := postRequestUrl(url, bytes.NewBuffer(body))
+	buffer, err := PostRequestUrl(url, bytes.NewBuffer(body))
 
 	if err != nil {
 		log.Panic(err)
@@ -234,7 +234,7 @@ func (w *WorkWeixin) SendText(toUser string, toparties string, totag string, tex
 	}
 	log.Println(string(body))
 
-	buffer, err := postRequestUrl(fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=%s",
+	buffer, err := PostRequestUrl(fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=%s",
 		w.GetAccessToken()),
 		bytes.NewBuffer(body))
 	//
@@ -258,10 +258,10 @@ func (w *WorkWeixin) checkToken() bool {
 		}
 	}
 
-	return false;
+	return false
 }
 
-func (w *WorkWeixin) GetAccessToken() (string) {
+func (w *WorkWeixin) GetAccessToken() string {
 
 	if w.checkToken() {
 		return w.token.Access_token
@@ -274,7 +274,7 @@ func (w *WorkWeixin) GetAccessToken() (string) {
 		log.Print(err)
 		log.Print("重新通过网络获取")
 		url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=%s&corpsecret=%s", w.corpid, w.corpsecret)
-		buffer, err = getRequestUrl(url)
+		buffer, err = GetRequestUrl(url)
 	} else {
 		w.token = token
 		return w.token.Access_token
@@ -340,11 +340,11 @@ func (w *WorkWeixin) saveAccessToken(bytes []byte) {
 
 }
 
-func postRequestUrl(url string, body io.Reader) ([]byte, error) {
+func PostRequestUrl(url string, body io.Reader) ([]byte, error) {
 	return requestUrl(url, "POST", body)
 }
 
-func getRequestUrl(url string) ([]byte, error) {
+func GetRequestUrl(url string) ([]byte, error) {
 	return requestUrl(url, "GET", nil)
 }
 
