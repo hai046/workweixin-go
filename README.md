@@ -54,3 +54,4 @@ golang实现企业微信API
 	//notify.SendText("DengHaiZhuSheZhangGeGe", "", "", "msg")
 	//notify.SendText("", "", "2", "内网部署情况以后就用这个了,如果感觉到打扰可以把该通知设置成消息免打扰")
 ```
+感谢支持
