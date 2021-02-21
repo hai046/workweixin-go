@@ -275,6 +275,10 @@ func (w *WorkWeixin) GetAccessToken() string {
 		log.Print("重新通过网络获取")
 		url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=%s&corpsecret=%s", w.corpid, w.corpsecret)
 		buffer, err = GetRequestUrl(url)
+		if err != nil {
+			log.Fatalf("request error: %s", err)
+		}
+		log.Printf("gettoken api result: %s", buffer)
 	} else {
 		w.token = token
 		return w.token.Access_token
@@ -361,13 +365,15 @@ func requestUrl(url string, method string, body io.Reader) ([]byte, error) {
 
 	//处理返回结果
 	response, err := client.Do(request)
-
 	if err != nil {
 		return nil, err
 	}
 	defer response.Body.Close()
 
 	buf, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
 
 	if response.StatusCode == http.StatusOK {
 		return buf, nil
