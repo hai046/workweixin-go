@@ -321,7 +321,7 @@ func (w *WorkWeixin) getTokenByCache() (*AccessToken, error) {
 	return token, nil
 }
 func (w *WorkWeixin) getStoreFile() string {
-	return fmt.Sprintf("/data/work_%d.json", w.agentId)
+	return fmt.Sprintf("/tmp/work_%d.json", w.agentId)
 }
 
 func (w *WorkWeixin) saveAccessToken(bytes []byte) {
