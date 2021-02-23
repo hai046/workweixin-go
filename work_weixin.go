@@ -21,12 +21,16 @@ type WorkWeixin struct {
 	userMobiles map[string]string
 }
 
+type Rsp struct {
+	Errcode int    `json:"errcode"`
+	Errmsg  string `json:"errmsg"`
+}
+
 type AccessToken struct {
 	Access_token string `json:"access_token"`
 	Expires_in   int64  `json:"expires_in"` //秒 默认返回是2小时
 	ExpireAt     int64  `json:"expireAt"`   //在什么时候过期
-	Errcode      int    `json:"errcode"`
-	Errmsg       string `json:"errmsg"`
+	Rsp
 }
 
 type Department struct {
@@ -353,6 +357,7 @@ func GetRequestUrl(url string) ([]byte, error) {
 }
 
 func requestUrl(url string, method string, body io.Reader) ([]byte, error) {
+	retried := false
 
 	client := &http.Client{}
 
@@ -376,6 +381,15 @@ func requestUrl(url string, method string, body io.Reader) ([]byte, error) {
 	}
 
 	if response.StatusCode == http.StatusOK {
+		var rsp *Rsp
+		json.Unmarshal(buf, &rsp)
+		if !retried && needGetToken(rsp.Errcode) {
+			retried = true
+			var w *WorkWeixin
+			os.Remove(w.getStoreFile())
+			w.GetAccessToken()
+			return requestUrl(url, method, body)
+		}
 		return buf, nil
 	} else {
 		return nil, errors.New(fmt.Sprint("StatusCode=", response.StatusCode, " msg=", string(buf)))
@@ -391,4 +405,8 @@ func (w *WorkWeixin) GetUserIdByMobile(mobile string) string {
 		}
 	}
 	return w.userMobiles[mobile]
+}
+
+func needGetToken(errcode int) bool {
+	return errcode == 40014
 }
