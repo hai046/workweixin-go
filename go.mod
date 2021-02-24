@@ -1,3 +1,3 @@
-module github.com/DOTA2mm/workweixin-go
+module github.com/aiyogg/workweixin-go
 
 go 1.15
