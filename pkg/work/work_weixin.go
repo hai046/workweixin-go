@@ -2,6 +2,7 @@ package work
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,11 +15,12 @@ import (
 )
 
 type WorkWeixin struct {
-	corpid      string
-	corpsecret  string
-	token       *AccessToken
-	agentId     int
-	userMobiles map[string]string
+	corpid        string
+	corpsecret    string
+	token         *AccessToken
+	agentId       int
+	userMobiles   map[string]string
+	existGroupIds []string //存在的群组
 }
 
 type AccessToken struct {
@@ -36,15 +38,18 @@ type Department struct {
 	Order    int32  `json:"order"`
 }
 
+type ResponseBase struct {
+	Errcode int    `json:"errcode"`
+	Errmsg  string `json:"errmsg"`
+}
+
 type departments struct {
-	Errcode    int          `json:"errcode"`
-	Errmsg     string       `json:"errmsg"`
+	ResponseBase
 	Department []Department `json:"department"`
 }
 
 type users struct {
-	Errcode  int    `json:"errcode"`
-	Errmsg   string `json:"errmsg"`
+	ResponseBase
 	Userlist []User `json:"userlist"`
 }
 
@@ -58,6 +63,28 @@ type User struct {
 	Avatar       string `json:"avatar"`
 	Telephone    string `json:"telephone"`
 	English_name string `json:"english_name"`
+}
+
+type requestChatInfo struct {
+	//docs https://work.weixin.qq.com/api/doc/90000/90135/90245
+	Name     string   `json:"name"`
+	UserList []string `json:"userlist"`
+	ChatId   string   `json:"chatid"`
+	Owner    string   `json:"owner"`
+}
+
+type requestChatContent struct {
+	Content string `json:"content"`
+}
+type requestChatMarkdownMsg struct {
+	//docs https://work.weixin.qq.com/api/doc/90000/90135/90245
+	Msgtype string              `json:"msgtype"`
+	ChatId  string              `json:"chatid"`
+	Content *requestChatContent `json:"markdown"`
+}
+type responseChatInfo struct {
+	ResponseBase
+	ChatId string `json:"chatid"`
 }
 
 //agentId 表示应用id， 0  表示本应用
@@ -281,7 +308,10 @@ func (w *WorkWeixin) GetAccessToken() string {
 
 	}
 
-	json.Unmarshal(buffer, &token)
+	err = json.Unmarshal(buffer, &token)
+	if err != nil {
+		log.Printf("err=%+v,bufer=%v", err, buffer)
+	}
 	if token.Errcode != 0 {
 		//return nil, errors.New(fmt.Sprintf("获取accessToken err 。 %s", token.errmsg)
 		log.Fatal("获取accessToken err")
@@ -309,7 +339,7 @@ func (w *WorkWeixin) getTokenByCache() (*AccessToken, error) {
 		return nil, err
 	}
 	var token *AccessToken
-	json.Unmarshal(buffer, &token)
+	_ = json.Unmarshal(buffer, &token)
 	if token == nil || token.Errcode != 0 {
 		log.Fatal("get cache err")
 		return nil, errors.New(fmt.Sprintf("getTokenByCache 获取accessToken err"))
@@ -321,13 +351,13 @@ func (w *WorkWeixin) getTokenByCache() (*AccessToken, error) {
 	return token, nil
 }
 func (w *WorkWeixin) getStoreFile() string {
-	return fmt.Sprintf("/data/work_%d.json", w.agentId)
+	return fmt.Sprintf("data/work_%d.json", w.agentId)
 }
 
 func (w *WorkWeixin) saveAccessToken(bytes []byte) {
 
 	if bytes == nil {
-		os.Remove(w.getStoreFile())
+		_ = os.Remove(w.getStoreFile())
 		return
 	}
 	file, err := os.Create(w.getStoreFile()) // For read access.
@@ -338,6 +368,34 @@ func (w *WorkWeixin) saveAccessToken(bytes []byte) {
 	defer file.Close()
 	file.Write(bytes)
 
+}
+
+func (w *WorkWeixin) saveGroupId(group string) {
+	path := fmt.Sprintf("data/groups.json")
+	file, err := os.Create(path) // For read access.
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	defer file.Close()
+	w.existGroupIds = append(w.existGroupIds, group)
+	resultBuf, _ := json.Marshal(w.existGroupIds)
+	_, _ = file.Write(resultBuf)
+}
+
+func (w *WorkWeixin) getGroupIds() {
+	path := fmt.Sprintf("data/groups.json")
+	file, err := os.Open(path) // For read access.
+	if err != nil {
+		var groups []string
+		w.existGroupIds = groups
+		return
+	}
+	defer file.Close()
+	buffer, err := ioutil.ReadAll(file)
+	var groups []string
+	_ = json.Unmarshal(buffer, &groups)
+	w.existGroupIds = groups
 }
 
 func PostRequestUrl(url string, body io.Reader) ([]byte, error) {
@@ -385,4 +443,77 @@ func (w *WorkWeixin) GetUserIdByMobile(mobile string) string {
 		}
 	}
 	return w.userMobiles[mobile]
+}
+
+func (w *WorkWeixin) SendGroupText(users []string, title string, content string) string {
+	chatId := w.CreateChatGroup(users, title)
+	req := requestChatMarkdownMsg{
+		Msgtype: "markdown",
+		ChatId:  chatId,
+		Content: &requestChatContent{
+			Content: content,
+		},
+	}
+	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/appchat/send?access_token=%s", w.token.Access_token)
+	if data, err := json.Marshal(req); err == nil {
+		log.Printf("发送群聊body:%s", string(data))
+		if responseBuffer, e := PostRequestUrl(url, bytes.NewBuffer(data)); e == nil {
+			respon := string(responseBuffer)
+			log.Println(respon)
+			return respon
+		}
+	}
+	return ""
+}
+
+func (w *WorkWeixin) CreateChatGroup(users []string, title string) string {
+	w.GetAccessToken()
+	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/appchat/create?access_token=%s", w.token.Access_token)
+	chatId := innerMD5(title)
+	w.getGroupIds()
+	for i := 0; i < len(w.existGroupIds); i++ {
+		log.Printf("=========%+v\n", w.existGroupIds)
+		if w.existGroupIds[i] == chatId {
+			return chatId
+		}
+	}
+	chatInfo := requestChatInfo{
+		ChatId:   chatId,
+		UserList: users,
+		Name:     title,
+		Owner:    users[0],
+	}
+	if marshal, err := json.Marshal(chatInfo); err == nil {
+		log.Printf("request create chat body=%s\n", string(marshal))
+		if buffer, e := PostRequestUrl(url, bytes.NewBuffer(marshal)); e == nil {
+			log.Println(string(buffer))
+			var result ResponseBase
+			json.Unmarshal(buffer, &result)
+			if result.Errcode == 0 {
+				return chatId
+			} else {
+				log.Panic("创建群主失败")
+			}
+		} else {
+			log.Println(e)
+		}
+	} else {
+		log.Println(err)
+	}
+	return chatId
+
+}
+
+func innerMD5(body interface{}) string {
+	if data, err := json.Marshal(body); err == nil {
+		has := md5.Sum(data)
+		md5str1 := fmt.Sprintf("%x", has) //将[]byte转成16进制
+		fmt.Println(md5str1)
+		return md5str1
+	} else {
+		log.Fatalln(err)
+	}
+
+	return ""
+
 }

@@ -1,4 +1,24 @@
 # workweixin-go
+
+# v1.1
+- 更新支持http请求
+- 支持按照标题发送群聊接口
+
+### 环境配置
+在项目下创建配置文件 `config.ymal`
+
+里面内容
+
+```yaml
+port: 9110
+chat:
+  corpid: xxxxx    #公司id
+  secret: xxxxx #对应站内应用密匙
+  agentId: 1000009  #对应应用id
+
+```
+
+# v1.0
 golang实现企业微信API
 - 实现了部门相关api
 - 实现了tag相关api
