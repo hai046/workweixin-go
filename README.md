@@ -4,7 +4,11 @@
 - 更新支持http请求
 - 支持按照标题发送群聊接口
 - 已经把该群组功能集成到alertmanager且发起了PR，自己项目实现了
-- 请查看：https://github.com/hai046/alertmanager   wechat `groupTitle``groupUsers`配置即可，docker镜像：https://hub.docker.com/repository/docker/hai046/alertmanager
+
+### alertmanager
+
+请查看：https://github.com/hai046/alertmanager   wechat `groupTitle``groupUsers`配置即可
+docker镜像：https://hub.docker.com/repository/docker/hai046/alertmanager
 
 ### 环境配置
 在项目下创建配置文件 `config.ymal`
