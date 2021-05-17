@@ -7,8 +7,8 @@
 
 ### alertmanager
 
-请查看：https://github.com/hai046/alertmanager   wechat `groupTitle``groupUsers`配置即可
-docker镜像：https://hub.docker.com/repository/docker/hai046/alertmanager
+- 请查看：https://github.com/hai046/alertmanager   wechat `groupTitle``groupUsers`配置即可
+- docker镜像：https://hub.docker.com/repository/docker/hai046/alertmanager
 
 ### 环境配置
 在项目下创建配置文件 `config.ymal`
