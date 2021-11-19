@@ -81,7 +81,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println(timestamp)
 		log.Println(nonce)
 		log.Println(echostr)
-		//第一次天下callback时候使用
+		//第一次callback 认证绑定 时候使用
 		//result, e := chat.VerityCallback(msg_signature, timestamp, nonce, echostr)
 		content, _ := ioutil.ReadAll(r.Body)
 		callback, err := chat.Callback(msg_signature, timestamp, nonce, content)
