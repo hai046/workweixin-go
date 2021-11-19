@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -14,38 +15,27 @@ import (
 
 var chat = work.WorkWeixin{}
 
-type ChatConfig struct {
-	Corpid  string `yaml:"corpid"`
-	Secret  string `yaml:"secret"`
-	AgentId int    `yaml:"agentId"`
-}
-type EnvConfig struct {
-	Port       string      `yaml:"port"`
-	ChatConfig *ChatConfig `yaml:"chat"`
-}
-
 //centOS build:    GOARCH=amd64  GOOS=linux  go build -o  bin/work-wechat
 func main() {
-
-	conf := loadEnv()
-
 	http.HandleFunc("/", indexHandler)
+	var conf = loadEnv()
 	port := conf.Port
 	if port == "" {
 		port = "8080"
 		log.Printf("Defaulting to port %s", port)
 	}
 	//聊天
-	//chat.Init("ww40f46d8d9dc94ed2", "B8WViyiyVmFhH-dq4wU8p1f9GZgt0cb3l7ksNYCpW-o", 1000009)
-	chat.Init(conf.ChatConfig.Corpid, conf.ChatConfig.Secret, conf.ChatConfig.AgentId)
+
+	chat.Init(conf.ChatConfig)
 	log.Printf("Listening on port %s", port)
 	log.Printf("Open http://localhost:%s in the browser", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
 }
 
-func loadEnv() EnvConfig {
+func loadEnv() work.EnvConfig {
 	//
 	//自己load
+
 	file, err := os.Open("config.yaml") // For cofig access.
 	if err != nil {
 		log.Panicln("please config config.yaml")
@@ -53,7 +43,7 @@ func loadEnv() EnvConfig {
 	defer file.Close()
 
 	buffer, err := ioutil.ReadAll(file)
-	var currentConfig EnvConfig
+	currentConfig := work.EnvConfig{}
 	err = yaml.Unmarshal(buffer, &currentConfig)
 	log.Println("load config：", string(buffer))
 	if err != nil {
@@ -75,6 +65,29 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		} else {
 			w.WriteHeader(http.StatusOK)
 		}
+	case "/send/template/card":
+		var temp = work.TemplateCard{}
+		content, _ := ioutil.ReadAll(r.Body)
+		json.Unmarshal(content, &temp)
+		log.Println(temp)
+		chat.SendTemplateMsg(temp)
+	case "/callback/wechat":
+		msg_signature := r.FormValue("msg_signature")
+		timestamp := r.FormValue("timestamp")
+		nonce := r.FormValue("nonce")
+		echostr := r.FormValue("echostr")
+
+		log.Println(msg_signature)
+		log.Println(timestamp)
+		log.Println(nonce)
+		log.Println(echostr)
+		//第一次天下callback时候使用
+		//result, e := chat.VerityCallback(msg_signature, timestamp, nonce, echostr)
+		content, _ := ioutil.ReadAll(r.Body)
+		callback, err := chat.Callback(msg_signature, timestamp, nonce, content)
+		log.Printf("%s\t%s", callback, err)
+		//w.Write()
+
 	default:
 		http.NotFound(w, r)
 		return

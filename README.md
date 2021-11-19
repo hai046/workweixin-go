@@ -1,6 +1,16 @@
 # workweixin-go
 
+# v1.2
+
+- 添加发送`模板卡片`消息
+-
+
+![模板卡片](https://wework.qpic.cn/wwpic/235797_QOJtTyeUTBuAk_G_1632907465/0)
+
+其他：隔一段时间来看这部分代码有些不忍直视 😓
+
 # v1.1
+
 - 更新支持http请求
 - 支持按照标题发送群聊接口
 - 已经把该群组功能集成到alertmanager且发起了PR，自己项目实现了
@@ -11,6 +21,7 @@
 - docker镜像：https://hub.docker.com/repository/docker/hai046/alertmanager
 
 ### 环境配置
+
 在项目下创建配置文件 `config.ymal`
 
 里面内容
@@ -25,7 +36,9 @@ chat:
 ```
 
 # v1.0
+
 golang实现企业微信API
+
 - 实现了部门相关api
 - 实现了tag相关api
 - 实现了获取用户相关api
@@ -33,6 +46,7 @@ golang实现企业微信API
 - 实现了手机号对应user转换
 
 注意:因为企业微信不同的功能对应不同的应用，不同的应用agentId 和secert是不一样的，故调用api时候请按照官方说明调用对应方法即可
+
 ```
 	var w work.WorkWeixin //声明企业微信  通讯录里面的secret
 	w.Init("cropid", "secret", 0)
@@ -80,4 +94,5 @@ golang实现企业微信API
 	//notify.SendText("DengHaiZhuSheZhangGeGe", "", "", "msg")
 	//notify.SendText("", "", "2", "内网部署情况以后就用这个了,如果感觉到打扰可以把该通知设置成消息免打扰")
 ```
+
 感谢支持

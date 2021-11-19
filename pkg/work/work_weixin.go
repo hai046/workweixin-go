@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -12,15 +13,31 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"work-wechat/pkg/work/wxbizmsgcrypt"
 )
+
+type EnvConfig struct {
+	Port       string      `yaml:"port"`
+	ChatConfig *ChatConfig `yaml:"chat"`
+}
+
+type ChatConfig struct {
+	Corpid                 string `yaml:"corpid"`
+	Secret                 string `yaml:"secret"`
+	AgentId                int    `yaml:"agentId"`
+	CallBackToken          string `yaml:"callbackToken"`
+	CallBackEncodingAESKey string `yaml:"callbackEncodingAESKey"`
+}
 
 type WorkWeixin struct {
 	corpid        string
 	corpsecret    string
 	token         *AccessToken
 	agentId       int
+	chatConfig    *ChatConfig
 	userMobiles   map[string]string
 	existGroupIds []string //存在的群组
+
 }
 
 type AccessToken struct {
@@ -87,13 +104,26 @@ type responseChatInfo struct {
 	ChatId string `json:"chatid"`
 }
 
+//docs https://work.weixin.qq.com/api/doc/90000/90135/90236#%E6%96%87%E6%9C%AC%E5%8D%A1%E7%89%87%E6%B6%88%E6%81%AF
+type TemplateCard struct {
+	MsgType string `json:"msgtype"`
+	ToUser  string `json:"touser"`
+	//ToTag   string       `json:"totag"`
+	AgentId int          `json:"agentid"`
+	Content *interface{} `json:"template_card"`
+}
+
+//type TemplateCardBody struct {
+//	CardType string `json:"card_type"`
+//}
+
 //agentId 表示应用id， 0  表示本应用
 //微信
-func (w *WorkWeixin) Init(corpid string,
-	corpsecret string, agentId int) {
-	w.corpid = corpid
-	w.corpsecret = corpsecret
-	w.agentId = agentId
+func (w *WorkWeixin) Init(conf *ChatConfig) {
+	w.corpid = conf.Corpid
+	w.corpsecret = conf.Secret
+	w.agentId = conf.AgentId
+	w.chatConfig = conf
 	w.GetAccessToken()
 
 }
@@ -466,6 +496,21 @@ func (w *WorkWeixin) SendGroupText(users []string, title string, content string)
 	return ""
 }
 
+func (w *WorkWeixin) SendTemplateMsg(card TemplateCard) string {
+	card.AgentId = w.agentId
+	w.GetAccessToken()
+	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=%s", w.token.Access_token)
+	if data, err := json.Marshal(card); err == nil {
+		log.Printf("发送卡片模板消息body:%s", string(data))
+		if responseBuffer, e := PostRequestUrl(url, bytes.NewBuffer(data)); e == nil {
+			respon := string(responseBuffer)
+			log.Println(respon)
+			return respon
+		}
+	}
+	return ""
+}
+
 func (w *WorkWeixin) CreateChatGroup(users []string, title string) string {
 	w.GetAccessToken()
 	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/appchat/create?access_token=%s", w.token.Access_token)
@@ -502,6 +547,40 @@ func (w *WorkWeixin) CreateChatGroup(users []string, title string) string {
 	}
 	return chatId
 
+}
+
+func (w *WorkWeixin) VerityCallback(signature string, timestamp string, nonce string, echostr string) ([]byte, error) {
+	w.GetAccessToken()
+	var wxCrypt = wxbizmsgcrypt.NewWXBizMsgCrypt(w.chatConfig.CallBackToken, w.chatConfig.CallBackEncodingAESKey, w.chatConfig.Corpid, wxbizmsgcrypt.XmlType)
+	msg, cryptError := wxCrypt.VerifyURL(signature, timestamp, nonce, echostr)
+	log.Println(msg)
+	log.Println(cryptError)
+	return msg, errors.New(fmt.Sprintf("%+v", cryptError))
+}
+
+type WechatEvent struct {
+	FromUserName string `xml:"FromUserName"`
+	MsgType      string `xml:"MsgType"`
+	Event        string `xml:"Event"`
+	EventKey     string `xml:"EventKey"`
+	Content      string `xml:"Content"`
+}
+
+func (w *WorkWeixin) Callback(signature string, timestamp string, nonce string, data []byte) (WechatEvent, error) {
+	w.GetAccessToken()
+	var wxCrypt = wxbizmsgcrypt.NewWXBizMsgCrypt(w.chatConfig.CallBackToken, w.chatConfig.CallBackEncodingAESKey, w.chatConfig.Corpid, wxbizmsgcrypt.XmlType)
+	msg, cryptError := wxCrypt.DecryptMsg(signature, timestamp, nonce, data)
+	log.Println(string(msg))
+	log.Println(cryptError)
+	we := WechatEvent{}
+	if cryptError != nil {
+		return we, errors.New(fmt.Sprintf("%+v", cryptError))
+	}
+	xml.Unmarshal(msg, &we)
+
+	fmt.Printf("%+v", we)
+
+	return we, nil
 }
 
 func innerMD5(body interface{}) string {

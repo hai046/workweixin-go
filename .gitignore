@@ -12,7 +12,9 @@
 config.yaml
 # Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
 .glide/
-
+.DS_Store
 bin/
+.idea
+data
 
 *_test.go
